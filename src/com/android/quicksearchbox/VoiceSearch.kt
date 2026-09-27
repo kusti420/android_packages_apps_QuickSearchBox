@@ -36,6 +36,15 @@ class VoiceSearch(context: Context?) {
     get() = mContext
 
   fun shouldShowVoiceSearch(): Boolean {
+    // IchthysOS: the user does not want voice search anywhere in the OS. This is the single
+    // gate SearchActivityView uses to show/hide the microphone button in the search box (and
+    // SearchWidgetProvider for the widget's mic), so returning false removes the affordance
+    // outright. Typed search in QSB is untouched.
+    //
+    // Today this would also be false because nothing on the device handles
+    // RecognizerIntent.ACTION_WEB_SEARCH, but that is accidental - installing any app that
+    // does would put the mic back. This makes it deterministic.
+    if (VOICE_SEARCH_DISABLED) return false
     return isVoiceSearchAvailable
   }
 
@@ -55,6 +64,10 @@ class VoiceSearch(context: Context?) {
     get() = resolveInfo != null
 
   fun createVoiceWebSearchIntent(appData: Bundle?): Intent? {
+    // IchthysOS: no voice search. SearchWidgetProvider and AbstractSource call this directly
+    // rather than going through shouldShowVoiceSearch(), and a null intent is already the
+    // "no voice search available" contract both of them handle (the widget hides its mic).
+    if (VOICE_SEARCH_DISABLED) return null
     if (!isVoiceSearchAvailable) return null
     val intent: Intent = createVoiceSearchIntent()
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -98,6 +111,13 @@ class VoiceSearch(context: Context?) {
 
   companion object {
     private const val TAG = "QSB.VoiceSearch"
+
+    /**
+     * IchthysOS: the user considers voice search spyware and wants no microphone affordance in
+     * the OS. Flip to false to restore the mic button in the QSB search box and widget. Plain
+     * `val`, not `const val`, so the early returns don't make the rest statically unreachable.
+     */
+    private val VOICE_SEARCH_DISABLED = true
   }
 
   init {
